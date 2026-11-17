@@ -1,0 +1,87 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>PlacementHub</title>
+  <meta name="description" content="Search campus placement openings collected from Telegram groups.">
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <header class="topbar">
+    <div class="brand">
+      <span class="logo" aria-hidden="true">PH</span>
+      <div>
+        <h1>PlacementHub</h1>
+        <p class="tagline">Every placement message, searchable.</p>
+      </div>
+    </div>
+    <span id="health" class="health" title="Service status">
+      <span class="dot"></span><span id="health-text">checking…</span>
+    </span>
+  </header>
+
+  <main>
+    <form id="search-form" class="filters" autocomplete="off">
+      <label class="search">
+        <span class="sr-only">Search</span>
+        <input id="q" name="q" type="search" placeholder="Search company, role, skill… (typos are fine)">
+      </label>
+
+      <div class="row">
+        <label>Category
+          <select id="category" name="category">
+            <option value="">All</option>
+            <option>Full-time</option>
+            <option>Internship</option>
+            <option>Hackathon</option>
+            <option>Other</option>
+          </select>
+        </label>
+        <label>Role
+          <input id="role" name="role" type="text" placeholder="e.g. devops">
+        </label>
+        <label>Location
+          <input id="location" name="location" type="text" placeholder="e.g. Bengaluru">
+        </label>
+        <label>Sort
+          <select id="sort" name="sort">
+            <option value="relevance">Relevance</option>
+            <option value="deadline">Deadline (soonest)</option>
+          </select>
+        </label>
+        <label class="check">
+          <input id="closing" name="closing" type="checkbox"> Closing in 3 days
+        </label>
+      </div>
+    </form>
+
+    <section id="resume-panel" class="resume" hidden>
+      <!-- Filled in by the Resume Match feature -->
+    </section>
+
+    <p id="status" class="status" role="status" aria-live="polite"></p>
+    <section id="results" class="grid" aria-label="Job openings"></section>
+  </main>
+
+  <footer class="footer">
+    Data comes from public placement messages. Always verify details on the official apply link.
+    · <a href="/docs">API docs</a>
+  </footer>
+
+  <template id="card-template">
+    <article class="card">
+      <header>
+        <span class="category"></span>
+        <span class="deadline"></span>
+      </header>
+      <h2 class="company"></h2>
+      <p class="role"></p>
+      <ul class="facts"></ul>
+      <a class="apply" target="_blank" rel="noopener noreferrer">Apply</a>
+    </article>
+  </template>
+
+  <script src="app.js" defer></script>
+</body>
+</html>

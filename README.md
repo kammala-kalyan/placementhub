@@ -19,9 +19,10 @@ python -m scripts.seed            # loads 50 sample messages
 ```
 
 Then open:
-- API docs: http://localhost:8000/docs
-- Health: http://localhost:8000/health
-- Search: http://localhost:8000/jobs/search?q=data%20anlyst
+- Web UI: http://localhost (or http://localhost:8080 if you set `WEB_PORT=8080`)
+- API docs: http://localhost/docs
+- Health: http://localhost/api/health
+- Search: http://localhost/api/jobs/search?q=data%20anlyst
 
 ## Run tests (no Docker needed)
 
@@ -37,6 +38,7 @@ python -m venv .venv
 ```
 api/        FastAPI service (Dockerfile, app/)
 bot/        Telegram bot (long polling, talks only to the API)
+web/        Static web UI + nginx config (proxies /api to the API)
 parser/     Shared message parser (interface + implementations)
 scripts/    Sample messages and seed script
 tests/      Unit and API tests (fakes, no real services)

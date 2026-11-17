@@ -2,6 +2,16 @@
 
 All notable changes, phase by phase.
 
+## Phase 4 – Web UI
+- Plain HTML/CSS/JS UI: search box, category/role/location/sort filters,
+  "closing in 3 days" toggle, job cards with red/amber deadline highlighting,
+  cache badge, live health indicator, shareable search URLs, dark mode.
+- XSS-safe rendering (`textContent` only, apply links limited to http/https).
+- nginx (unprivileged, port 8080) serves the UI and proxies `/api/*` to the
+  API; `/api/metrics` is blocked publicly; security headers and gzip.
+- Compose: `web` is the only public service; API now bound to localhost;
+  log rotation (10 MB x 3) on every container.
+
 ## Phase 3 – Telegram bot
 - `bot` service (python-telegram-bot 21, long polling) talking only to the API.
 - Commands: `/search`, `/latest`, `/deadlines` (closing within 3 days),
