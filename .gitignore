@@ -1,0 +1,33 @@
+# ---- Personal files (never commit) ----
+resume/
+
+# ---- Secrets ----
+.env
+*.pem
+*.key
+terraform.tfvars
+
+# ---- Python ----
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+.pytest_cache/
+.ruff_cache/
+.coverage
+coverage.xml
+htmlcov/
+*.egg-info/
+
+# ---- Terraform ----
+.terraform/
+*.tfstate
+*.tfstate.*
+crash.log
+.terraform.lock.hcl.bak
+
+# ---- Editors / OS ----
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
