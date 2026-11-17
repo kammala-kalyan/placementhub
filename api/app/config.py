@@ -17,7 +17,8 @@ class Settings(BaseSettings):
     es_alias: str = "jobs"
     redis_url: str = "redis://localhost:6379/0"
     cache_ttl_seconds: int = 60
-    parser: str = "simple"
+    dedup_ttl_seconds: int = 30 * 24 * 3600   # remember message hashes for 30 days
+    parser: str = "rules"
     timezone: str = "Asia/Kolkata"   # used for "closing within N days"
     log_level: str = "INFO"
 

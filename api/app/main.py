@@ -20,6 +20,7 @@ from prometheus_client import CONTENT_TYPE_LATEST, generate_latest
 from app import metrics
 from app.cache import RedisCache
 from app.config import Settings, get_settings
+from app.dedup import Deduplicator
 from app.es import (
     JobStore,
     StoreUnavailable,
@@ -57,6 +58,7 @@ def create_app(
         app.state.settings = settings
         app.state.store = store or JobStore(settings.es_url, alias=settings.es_alias)
         app.state.cache = cache or RedisCache(url=settings.redis_url)
+        app.state.dedup = Deduplicator(app.state.cache.client, settings.dedup_ttl_seconds)
         app.state.parser = get_parser(settings.parser)
         try:
             app.state.store.ensure_index()
@@ -104,7 +106,19 @@ def create_app(
     def ingest(payload: IngestRequest, request: Request, response: Response) -> IngestResponse:
         """Parse a raw message and store it. Duplicates are detected by content hash."""
         store: JobStore = request.app.state.store
+        dedup: Deduplicator = request.app.state.dedup
         job_id = message_hash(payload.text)
+
+        # 1) Fast pre-check in Redis (False = seen before, None = Redis down).
+        if dedup.mark_if_new(job_id) is False:
+            existing = store.get(job_id)
+            if existing is not None:
+                metrics.JOBS_INGESTED.labels("duplicate").inc()
+                response.status_code = 200
+                return IngestResponse(id=job_id, status="duplicate", job=Job(**existing))
+            # Redis remembers it but ES does not (e.g. index rebuilt): store it again.
+
+        # 2) Parse and write to Elasticsearch, which also rejects duplicates by id.
         parsed = request.app.state.parser.parse(payload.text)
         posted_at = payload.posted_at or datetime.now(UTC)
         doc = {
@@ -114,7 +128,11 @@ def create_app(
             "posted_at": posted_at.isoformat(),
         }
 
-        created = store.create_job(job_id, doc)
+        try:
+            created = store.create_job(job_id, doc)
+        except StoreUnavailable:
+            dedup.forget(job_id)   # otherwise a retry would be wrongly called a duplicate
+            raise
         result: Literal["created", "duplicate"] = "created" if created else "duplicate"
         metrics.JOBS_INGESTED.labels(result).inc()
         logger.info("ingested", extra={"fields": {"id": job_id[:12], "result": result,

@@ -19,6 +19,9 @@ JOBS_INGESTED = Counter(
 CACHE_REQUESTS = Counter(
     "placementhub_search_cache_total", "Search cache lookups (hit/miss)", ["result"]
 )
+DEDUP_CHECKS = Counter(
+    "placementhub_dedup_checks_total", "Redis duplicate pre-checks", ["result"]
+)
 REDIS_ERRORS = Counter(
     "placementhub_redis_errors_total", "Redis operations that failed while the app kept working"
 )

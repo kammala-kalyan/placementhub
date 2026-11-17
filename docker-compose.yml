@@ -46,7 +46,7 @@ services:
       - REDIS_URL=redis://redis:6379/0
       - LOG_LEVEL=${LOG_LEVEL:-INFO}
       - CACHE_TTL_SECONDS=${CACHE_TTL_SECONDS:-60}
-      - PARSER=${PARSER:-simple}
+      - PARSER=${PARSER:-rules}
     ports:
       - "8000:8000"
     depends_on:

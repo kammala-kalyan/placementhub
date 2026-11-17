@@ -13,6 +13,7 @@ from fastapi.testclient import TestClient
 
 from app.cache import RedisCache
 from app.config import Settings
+from app.es import StoreUnavailable
 from app.main import create_app
 
 
@@ -22,7 +23,9 @@ class FakeJobStore:
     def __init__(self) -> None:
         self.jobs: dict[str, dict[str, Any]] = {}
         self.search_calls = 0
+        self.create_calls = 0
         self.up = True
+        self.fail_writes = False   # simulate Elasticsearch being down for writes
 
     def ping(self) -> bool:
         return self.up
@@ -31,6 +34,9 @@ class FakeJobStore:
         pass
 
     def create_job(self, job_id: str, doc: dict[str, Any]) -> bool:
+        self.create_calls += 1
+        if self.fail_writes:
+            raise StoreUnavailable("simulated outage")
         if job_id in self.jobs:
             return False
         self.jobs[job_id] = doc
