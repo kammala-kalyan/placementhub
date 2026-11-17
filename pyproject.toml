@@ -1,0 +1,19 @@
+# Tool configuration only (this repo is not a pip-installable package).
+
+[tool.ruff]
+line-length = 100
+target-version = "py312"
+
+[tool.ruff.lint]
+# E/F = pycodestyle + pyflakes, I = import sorting, B = bugbear, UP = modern syntax
+select = ["E", "F", "I", "B", "UP"]
+
+[tool.ruff.lint.isort]
+known-first-party = ["app", "parser", "scripts"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+# "." makes `parser` and `scripts` importable, "api" makes `app` importable,
+# exactly like the layout inside the Docker image.
+pythonpath = [".", "api"]
+addopts = "-q"

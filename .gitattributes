@@ -1,0 +1,5 @@
+# Store and check out text files with LF endings, even on Windows.
+# Shell scripts and Dockerfiles break with Windows (CRLF) line endings.
+* text=auto eol=lf
+*.png binary
+*.jpg binary
