@@ -2,6 +2,15 @@
 
 All notable changes, phase by phase.
 
+## Phase 10 – Documentation and cleanup
+- Full README: problem, Mermaid architecture and CI/CD diagrams, features,
+  "why this tool" stack table, local setup, AWS deployment, observability,
+  cost safety, security notes, screenshot placeholders, known limitations,
+  future improvements.
+- `docs/INTERVIEW_NOTES.md`: 30-second pitch, 2-minute walkthrough, design
+  trade-offs, 25 interview questions with answers.
+- `docs/DEMO_SCRIPT.md`: timed 5-minute demo with recovery steps.
+
 ## Phase 9 – Resume Match
 - `parser/skills.py`: fixed skill dictionary with aliases and safe word
   boundaries; jobs now store `skills` and `skills_count`.

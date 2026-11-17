@@ -37,7 +37,7 @@ flowchart LR
 | Seed data | ~50 fictional-company messages, labelled for accuracy tests |
 | EC2 memory | t3.micro default + 2 GB swap + ES heap by variable; t3.small for demos |
 | CD access | SSH, port 22 open, key-only auth (SSM + OIDC noted as upgrade) |
-| Phase 9 | Decide after Phase 8; `skills` field and `resumes/` S3 prefix reserved |
+| Phase 9 | Built: Resume Match (skills dictionary, `terms_set` match, `resumes/` S3 prefix) |
 
 ## Data design
 
