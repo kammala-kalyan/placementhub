@@ -2,6 +2,22 @@
 
 All notable changes, phase by phase.
 
+## Phase 6 – Terraform + AWS
+- `infra/terraform`: default VPC, security group (80 public, 22 key-only),
+  EC2 (Amazon Linux 2023, `t3.micro` default, IMDSv2 only, encrypted gp3,
+  `cpu_credits = "standard"`), S3 backup bucket (versioning, public access
+  blocked, encryption, lifecycle expiry), least-privilege IAM role and
+  instance profile (S3 bucket + one SSM parameter + Session Manager),
+  bot token as an SSM SecureString, $5 AWS Budget alerts, useful outputs.
+- First-boot `user_data`: 2 GB swap, `vm.max_map_count` for Elasticsearch,
+  Docker + Compose, clone, `.env` with the token read from SSM, start the
+  stack from GHCR images (falls back to building), nightly backup cron.
+- `scripts/backup_jobs.py`: scroll-export all jobs to gzipped JSON lines and
+  upload to `s3://<bucket>/backups/YYYY/MM/DD/` (stdlib only, Python 3.9+).
+- `docs/DEPLOYMENT.md`: AWS account setup, CLI, apply, verify, CloudWatch
+  note, state explanation and `terraform destroy` reminder.
+- Provider lock file for Linux, Windows and macOS.
+
 ## Phase 5 – GitHub Actions CI
 - `ci.yml` on every push and pull request, no secrets required:
   ruff, pytest with coverage (fails under 85%), parser accuracy gate (95%),

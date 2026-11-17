@@ -1,0 +1,26 @@
+# Copy to terraform.tfvars and fill in. terraform.tfvars is in .gitignore
+# because it contains your bot token: never commit it.
+
+aws_region    = "ap-south-1"
+instance_type = "t3.micro" # use "t3.small" for smoother live demos
+
+# Paste the contents of ~/.ssh/placementhub.pub (the PUBLIC key, one line).
+ssh_public_key = "ssh-ed25519 AAAA... you@laptop"
+
+repo_url     = "https://github.com/<your-github-user>/placementhub.git"
+repo_branch  = "main"
+image_prefix = "ghcr.io/<your-github-user>/placementhub"
+
+alert_email      = "you@example.com"
+budget_limit_usd = "5"
+
+# Optional: leave empty to deploy without the Telegram bot.
+telegram_bot_token = ""
+source_chat_ids    = ""
+forum_chat_id      = ""
+topic_ids = {
+  fulltime   = ""
+  internship = ""
+  hackathon  = ""
+  other      = ""
+}
