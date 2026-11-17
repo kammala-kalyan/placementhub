@@ -58,6 +58,13 @@ class StoreUnavailable(Exception):
     """Raised when Elasticsearch cannot be reached."""
 
 
+def build_document(parsed: dict[str, Any], raw_text: str, source: str,
+                   posted_at: str) -> dict[str, Any]:
+    """The exact document stored in Elasticsearch. Used by /ingest and by the
+    re-index script, so both always produce the same shape."""
+    return {**parsed, "raw_text": raw_text, "source": source, "posted_at": posted_at}
+
+
 def build_search_query(
     q: str | None = None,
     category: str | None = None,

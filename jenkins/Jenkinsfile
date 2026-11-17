@@ -1,0 +1,106 @@
+// PlacementHub nightly pipeline (declarative Jenkinsfile).
+//   1. Parser accuracy: unit tests (JUnit report) + accuracy gate on the labelled samples
+//   2. Re-index Elasticsearch with the current parser (zero downtime, alias swap)
+//   3. Back up all jobs to S3 (or keep a local archive when no bucket is set)
+
+pipeline {
+    agent any
+
+    triggers {
+        // Every night around 02:00. "H" spreads jobs over the hour so many
+        // pipelines don't all start at the same second.
+        cron('H 2 * * *')
+    }
+
+    options {
+        timestamps()
+        timeout(time: 30, unit: 'MINUTES')
+        buildDiscarder(logRotator(numToKeepStr: '14'))
+        disableConcurrentBuilds()
+    }
+
+    parameters {
+        string(name: 'ES_URL', defaultValue: 'http://elasticsearch:9200',
+               description: 'Elasticsearch to re-index and back up')
+        string(name: 'MIN_ACCURACY', defaultValue: '0.95',
+               description: 'Fail the build if overall parser accuracy is lower')
+        booleanParam(name: 'REINDEX', defaultValue: true,
+                     description: 'Rebuild the jobs index with the current parser')
+        string(name: 'S3_BUCKET', defaultValue: '',
+               description: 'Backup bucket; empty = keep the backup as a build artifact only')
+    }
+
+    environment {
+        AWS_REGION = 'ap-south-1'
+        PYTHONUNBUFFERED = '1'
+    }
+
+    stages {
+        stage('Setup') {
+            steps {
+                sh '''
+                    python3 -m venv .venv
+                    .venv/bin/pip install --quiet --disable-pip-version-check -r requirements-dev.txt
+                    mkdir -p reports
+                '''
+            }
+        }
+
+        stage('Parser accuracy') {
+            steps {
+                sh '''
+                    export PYTHONPATH="$PWD:$PWD/api"
+                    .venv/bin/pytest tests/test_rules_parser.py -q --junitxml=reports/parser-tests.xml
+                    status=0
+                    .venv/bin/python -m scripts.parser_accuracy --min "$MIN_ACCURACY" --verbose \
+                        > reports/parser-accuracy.txt || status=$?
+                    cat reports/parser-accuracy.txt
+                    exit $status
+                '''
+            }
+        }
+
+        stage('Re-index Elasticsearch') {
+            when { expression { params.REINDEX } }
+            steps {
+                sh '''
+                    export PYTHONPATH="$PWD:$PWD/api"
+                    .venv/bin/python -m scripts.reindex --es-url "$ES_URL"
+                '''
+            }
+        }
+
+        stage('Backup') {
+            steps {
+                script {
+                    if (params.S3_BUCKET?.trim()) {
+                        // AWS keys come from the Jenkins credential store, never from the code.
+                        withCredentials([usernamePassword(credentialsId: 'aws-backup',
+                                usernameVariable: 'AWS_ACCESS_KEY_ID',
+                                passwordVariable: 'AWS_SECRET_ACCESS_KEY')]) {
+                            sh '.venv/bin/python -m scripts.backup_jobs --es-url "$ES_URL" --bucket "$S3_BUCKET" --region "$AWS_REGION" --out-dir reports/backups'
+                        }
+                    } else {
+                        sh '.venv/bin/python -m scripts.backup_jobs --es-url "$ES_URL" --out-dir reports/backups'
+                    }
+                }
+            }
+        }
+    }
+
+    post {
+        always {
+            junit allowEmptyResults: true, testResults: 'reports/*.xml'
+            archiveArtifacts artifacts: 'reports/**', allowEmptyArchive: true
+        }
+        success {
+            echo 'Nightly pipeline finished: parser checked, index rebuilt, backup stored.'
+        }
+        failure {
+            echo 'Nightly pipeline FAILED - open the stage logs and reports/parser-accuracy.txt.'
+        }
+        cleanup {
+            cleanWs(deleteDirs: true, notFailBuild: true)
+        }
+    }
+}

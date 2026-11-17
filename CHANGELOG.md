@@ -2,6 +2,18 @@
 
 All notable changes, phase by phase.
 
+## Phase 8 – Jenkins nightly pipeline
+- `jenkins/`: Jenkins LTS image with Python and plugins, configured entirely
+  as code (JCasC: admin user, security, pipeline job); no Docker socket mounted.
+- `Jenkinsfile`: nightly cron, parameters, stages for parser unit tests
+  (JUnit report) + accuracy gate, zero-downtime Elasticsearch re-index, and
+  S3 backup with credentials from the Jenkins credential store (or a local
+  artifact when no bucket is set); timeouts, log rotation, workspace cleanup.
+- `scripts/reindex.py`: new versioned index, re-parse with the current parser,
+  count check, atomic alias swap, keep one previous index for rollback.
+- Shared `build_document()` so ingest and re-index store identical documents.
+- `docs/JENKINS.md`: setup and Jenkins vs GitHub Actions comparison.
+
 ## Phase 7 – GitHub Actions CD
 - `cd.yml` runs only after CI succeeds on `main` (`workflow_run`), or manually.
 - Builds and pushes api, bot and web images to GHCR tagged `latest` and the

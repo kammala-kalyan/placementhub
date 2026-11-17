@@ -1,0 +1,10 @@
+# Jenkins plugins installed into the image (latest versions compatible with the core).
+configuration-as-code
+job-dsl
+workflow-aggregator
+pipeline-stage-view
+git
+credentials-binding
+timestamper
+junit
+ws-cleanup

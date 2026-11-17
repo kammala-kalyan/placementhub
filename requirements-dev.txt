@@ -6,3 +6,5 @@ pytest-cov==6.0.0
 httpx==0.28.1
 fakeredis==2.26.2
 ruff==0.8.4
+# Used by scripts/backup_jobs.py when it runs in Jenkins (EC2 uses the AWS CLI).
+boto3==1.35.90

@@ -25,6 +25,7 @@ from app.es import (
     JobStore,
     StoreUnavailable,
     build_deadlines_query,
+    build_document,
     build_search_query,
     sort_clause,
 )
@@ -121,12 +122,8 @@ def create_app(
         # 2) Parse and write to Elasticsearch, which also rejects duplicates by id.
         parsed = request.app.state.parser.parse(payload.text)
         posted_at = payload.posted_at or datetime.now(UTC)
-        doc = {
-            **parsed.model_dump(mode="json"),
-            "raw_text": payload.text,
-            "source": payload.source,
-            "posted_at": posted_at.isoformat(),
-        }
+        doc = build_document(parsed.model_dump(mode="json"), payload.text,
+                             payload.source, posted_at.isoformat())
 
         try:
             created = store.create_job(job_id, doc)
