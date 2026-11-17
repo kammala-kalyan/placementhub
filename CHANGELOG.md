@@ -2,6 +2,22 @@
 
 All notable changes, phase by phase.
 
+## Phase 9 – Resume Match
+- `parser/skills.py`: fixed skill dictionary with aliases and safe word
+  boundaries; jobs now store `skills` and `skills_count`.
+- `POST /resume`: PDF/TXT upload (2 MB max), skills extracted only from the
+  file's own text, rewording tips only for skills already listed
+  (e.g. `k8s` -> "Kubernetes (k8s)"), skills kept in Redis for 7 days,
+  original file stored privately in S3 `resumes/` (30-day lifecycle) when a
+  bucket is configured.
+- `GET /jobs/match?min_score=70`: Elasticsearch `terms_set` query with a
+  per-job minimum (`ceil(skills_count x ratio)`), exact score and missing
+  skills computed in the API, results cached in Redis for 10 minutes; works
+  with a skills list when Redis has lost the resume.
+- Additive mapping update at startup (`put_mapping`) for existing indexes.
+- Web UI: Resume Match panel with skill chips, tips and match scores on cards.
+- Tests: skills, scoring, PDF/TXT extraction, S3 upload failures, match API.
+
 ## Phase 8 – Jenkins nightly pipeline
 - `jenkins/`: Jenkins LTS image with Python and plugins, configured entirely
   as code (JCasC: admin user, security, pipeline job); no Docker socket mounted.

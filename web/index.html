@@ -56,8 +56,26 @@
       </div>
     </form>
 
-    <section id="resume-panel" class="resume" hidden>
-      <!-- Filled in by the Resume Match feature -->
+    <section id="resume-panel" class="resume" aria-labelledby="resume-title">
+      <h2 id="resume-title" class="resume-title">Resume Match</h2>
+      <p class="hint">Upload your resume (PDF or .txt, max 2 MB) to see the openings whose
+        skills you already cover. Only skills found in your file are used.</p>
+      <form id="resume-form" class="row">
+        <label>Resume
+          <input id="resume-file" name="file" type="file" accept=".pdf,.txt,application/pdf,text/plain" required>
+        </label>
+        <label>Minimum match
+          <select id="min-score" name="min_score">
+            <option value="50">50%</option>
+            <option value="70" selected>70%</option>
+            <option value="90">90%</option>
+          </select>
+        </label>
+        <button type="submit" class="button">Match my resume</button>
+        <button type="button" id="clear-match" class="button secondary" hidden>Back to search</button>
+      </form>
+      <div id="resume-result" class="resume-result"></div>
+      <p class="hint small">Files are stored privately and deleted automatically after 30 days.</p>
     </section>
 
     <p id="status" class="status" role="status" aria-live="polite"></p>

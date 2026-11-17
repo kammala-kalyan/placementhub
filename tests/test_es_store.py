@@ -32,10 +32,12 @@ def test_ensure_index_creates_index_and_alias_once(es):
     es.indices.put_alias.assert_called_once_with(index="jobs_v1", name="jobs")
 
 
-def test_ensure_index_skips_when_alias_exists(es):
+def test_ensure_index_only_adds_new_fields_when_alias_exists(es):
     es.indices.exists_alias.return_value = True
     JobStore("http://unused", client=es).ensure_index()
     es.indices.create.assert_not_called()
+    es.indices.put_mapping.assert_called_once_with(
+        index="jobs", properties=INDEX_MAPPINGS["properties"])
 
 
 def test_create_job_uses_create_only_and_reports_conflict_as_duplicate(es):

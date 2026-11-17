@@ -44,6 +44,7 @@ INDEX_MAPPINGS: dict[str, Any] = {
         "batch": {"type": "integer"},
         "branches": {"type": "keyword"},
         "skills": {"type": "keyword"},
+        "skills_count": {"type": "integer"},   # used by the Resume Match terms_set query
         "deadline": {"type": "date"},
         "posted_at": {"type": "date"},
         "apply_link": {"type": "keyword", "index": False},
@@ -62,7 +63,27 @@ def build_document(parsed: dict[str, Any], raw_text: str, source: str,
                    posted_at: str) -> dict[str, Any]:
     """The exact document stored in Elasticsearch. Used by /ingest and by the
     re-index script, so both always produce the same shape."""
-    return {**parsed, "raw_text": raw_text, "source": source, "posted_at": posted_at}
+    return {**parsed, "skills_count": len(parsed.get("skills") or []),
+            "raw_text": raw_text, "source": source, "posted_at": posted_at}
+
+
+def build_match_query(skills: list[str], min_ratio: float) -> dict[str, Any]:
+    """Jobs where the candidate has at least `min_ratio` of the JOB's skills.
+
+    terms_set counts how many of `skills` appear in each job's skills field and
+    compares that with a per-document minimum computed by a small script:
+    ceil(job's skill count x min_ratio).
+    """
+    return {"bool": {"filter": [
+        {"range": {"skills_count": {"gte": 1}}},
+        {"terms_set": {"skills": {
+            "terms": skills,
+            "minimum_should_match_script": {
+                "source": "Math.max(1, Math.ceil(doc['skills_count'].value * params.ratio))",
+                "params": {"ratio": min_ratio},
+            },
+        }}},
+    ]}}
 
 
 def build_search_query(
@@ -145,6 +166,11 @@ class JobStore:
                     )
                     logger.info("created index", extra={"fields": {"index": index}})
                 self.client.indices.put_alias(index=index, name=self.alias)
+            else:
+                # Additive mapping changes (new fields) can be applied in place;
+                # changing an existing field's type needs scripts/reindex.py.
+                self.client.indices.put_mapping(index=self.alias,
+                                                properties=INDEX_MAPPINGS["properties"])
         except (ESConnectionError, TransportError) as exc:
             raise StoreUnavailable(str(exc)) from exc
         self._ready = True

@@ -11,9 +11,9 @@ import time
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 from datetime import UTC, date, datetime
-from typing import Literal
+from typing import Annotated, Literal
 
-from fastapi import FastAPI, HTTPException, Query, Request, Response
+from fastapi import FastAPI, File, HTTPException, Query, Request, Response, UploadFile
 from fastapi.responses import JSONResponse
 from prometheus_client import CONTENT_TYPE_LATEST, generate_latest
 
@@ -26,6 +26,7 @@ from app.es import (
     StoreUnavailable,
     build_deadlines_query,
     build_document,
+    build_match_query,
     build_search_query,
     sort_clause,
 )
@@ -36,9 +37,13 @@ from app.models import (
     IngestResponse,
     Job,
     JobList,
+    MatchResponse,
+    ResumeResponse,
     SearchResponse,
 )
+from app.resume import ResumeError, ResumeStore, S3ResumeUploader, extract_text
 from parser import Category, get_parser
+from parser.skills import SKILLS, extract_skills, match_score, reword_suggestions
 from parser.text import message_hash
 
 logger = logging.getLogger("placementhub.api")
@@ -48,8 +53,9 @@ def create_app(
     store: JobStore | None = None,
     cache: RedisCache | None = None,
     settings: Settings | None = None,
+    uploader: S3ResumeUploader | None = None,
 ) -> FastAPI:
-    """Build the FastAPI app. Tests pass fake store/cache objects in."""
+    """Build the FastAPI app. Tests pass fake store/cache/uploader objects in."""
     settings = settings or get_settings()
     setup_logging(settings.log_level)
 
@@ -61,6 +67,8 @@ def create_app(
         app.state.cache = cache or RedisCache(url=settings.redis_url)
         app.state.dedup = Deduplicator(app.state.cache.client, settings.dedup_ttl_seconds)
         app.state.parser = get_parser(settings.parser)
+        app.state.resumes = ResumeStore(app.state.cache.client, settings.resume_ttl_seconds)
+        app.state.uploader = uploader or S3ResumeUploader(settings.s3_bucket, settings.aws_region)
         try:
             app.state.store.ensure_index()
         except StoreUnavailable:
@@ -70,7 +78,7 @@ def create_app(
 
     app = FastAPI(
         title="PlacementHub API",
-        version="0.1.0",
+        version="1.0.0",
         description="Collects placement messages, extracts structured fields and searches them.",
         lifespan=lifespan,
     )
@@ -186,6 +194,66 @@ def create_app(
         total, items = request.app.state.store.search(
             build_deadlines_query(days, settings.timezone), sort_clause("deadline"), size=50)
         return JobList(total=total, items=items)
+
+    # ---------- Resume Match ----------
+    @app.post("/resume", response_model=ResumeResponse, tags=["resume"])
+    async def upload_resume(
+        request: Request,
+        file: Annotated[UploadFile, File(description="PDF or .txt resume, max 2 MB")],
+    ) -> ResumeResponse:
+        """Upload a PDF/TXT resume. Returns the skills found in it (never invented)."""
+        content = await file.read()
+        try:
+            text = extract_text(file.filename or "", content)
+        except ResumeError as exc:
+            raise HTTPException(status_code=422, detail=str(exc)) from exc
+        skills = extract_skills(text)
+        resume_id = request.app.state.resumes.save(skills)
+        stored = request.app.state.uploader.upload(resume_id, file.filename or "", content)
+        logger.info("resume analysed", extra={"fields": {"skills": len(skills),
+                                                         "stored_in_s3": stored}})
+        return ResumeResponse(resume_id=resume_id, skills=skills,
+                              suggestions=reword_suggestions(text), stored_in_s3=stored)
+
+    @app.get("/jobs/match", response_model=MatchResponse, tags=["resume"])
+    def match_jobs(
+        request: Request,
+        resume_id: str | None = Query(None, max_length=64),
+        skills: str | None = Query(None, max_length=1000,
+                                   description="Comma-separated skills (used if Redis is down)"),
+        min_score: int = Query(70, ge=0, le=100),
+        size: int = Query(20, ge=1, le=50),
+    ) -> MatchResponse:
+        """Jobs whose required skills the resume covers by at least `min_score` percent."""
+        resume_skills = request.app.state.resumes.skills(resume_id) if resume_id else None
+        if resume_skills is None and skills:
+            known = {s.lower(): s for s in SKILLS}
+            resume_skills = [known[s.strip().lower()] for s in skills.split(",")
+                             if s.strip().lower() in known]
+        if not resume_skills:
+            raise HTTPException(status_code=404,
+                                detail="Unknown resume or no skills: upload your resume again.")
+
+        cache: RedisCache = request.app.state.cache
+        key = "match:" + hashlib.sha256(
+            json.dumps([sorted(resume_skills), min_score, size]).encode()).hexdigest()
+        cached = cache.get_json(key)
+        if cached is not None:
+            return MatchResponse(**cached, cached=True)
+
+        # Elasticsearch narrows the candidates; the exact score is computed here.
+        _, candidates = request.app.state.store.search(
+            build_match_query(resume_skills, min_score / 100), ["_doc"], size=200)
+        items = []
+        for job in candidates:
+            scored = match_score(resume_skills, job.get("skills") or [])
+            if job.get("skills") and scored["match_score"] >= min_score:
+                items.append({**job, **scored})
+        items.sort(key=lambda j: (-j["match_score"], j.get("deadline") or "9999"))
+        result = {"total": len(items), "min_score": min_score,
+                  "resume_skills": resume_skills, "items": items[:size]}
+        cache.set_json(key, result, settings.match_cache_ttl_seconds)
+        return MatchResponse(**result, cached=False)
 
     @app.get("/jobs/{job_id}", response_model=Job, tags=["jobs"])
     def get_job(job_id: str, request: Request) -> Job:

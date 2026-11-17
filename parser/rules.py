@@ -14,6 +14,7 @@ from urllib.parse import urlparse
 
 from parser.models import ParsedJob
 from parser.simple import detect_category, find_apply_link
+from parser.skills import extract_skills
 
 URL_RE = re.compile(r"https?://\S+")
 
@@ -351,4 +352,5 @@ class RuleBasedParser:
             batch=extract_batch(lines),
             deadline=extract_deadline(lines),
             apply_link=apply_link,
+            skills=extract_skills("\n".join(lines)),
         )

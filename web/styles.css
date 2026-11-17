@@ -151,6 +151,24 @@ input:focus, select:focus { outline: 2px solid var(--accent); outline-offset: 1p
   padding: 14px;
 }
 
+.resume-title { font-size: 1rem; margin: 0 0 4px; }
+.hint { color: var(--muted); font-size: 0.88rem; margin: 0 0 8px; }
+.hint.small { font-size: 0.78rem; margin-top: 8px; }
+.button {
+  font: inherit; font-weight: 600; cursor: pointer;
+  padding: 8px 14px; border-radius: 8px;
+  border: 1px solid var(--accent); background: var(--accent); color: #fff;
+}
+.button.secondary { background: transparent; color: var(--accent); }
+.button:disabled { opacity: 0.6; cursor: wait; }
+.resume-result { margin-top: 10px; font-size: 0.9rem; }
+.chips { display: flex; flex-wrap: wrap; gap: 6px; margin: 6px 0; padding: 0; list-style: none; }
+.chips li {
+  padding: 2px 10px; border-radius: 999px; font-size: 0.8rem;
+  border: 1px solid var(--border); background: var(--bg);
+}
+.tips { margin: 6px 0 0; padding-left: 18px; color: var(--muted); }
+
 .footer { text-align: center; color: var(--muted); font-size: 0.8rem; padding: 20px 16px 30px; }
 .footer a { color: var(--accent); }
 

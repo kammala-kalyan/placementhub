@@ -20,6 +20,10 @@ class Settings(BaseSettings):
     dedup_ttl_seconds: int = 30 * 24 * 3600   # remember message hashes for 30 days
     parser: str = "rules"
     timezone: str = "Asia/Kolkata"   # used for "closing within N days"
+    s3_bucket: str = ""              # empty = do not store resume files
+    aws_region: str = "ap-south-1"
+    resume_ttl_seconds: int = 7 * 24 * 3600
+    match_cache_ttl_seconds: int = 600
     log_level: str = "INFO"
 
 

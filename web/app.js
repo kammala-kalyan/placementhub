@@ -158,6 +158,78 @@ form.addEventListener("submit", (event) => {
   search();
 });
 
+// ---------- Resume Match ----------
+
+const resumeForm = document.getElementById("resume-form");
+const resumeResult = document.getElementById("resume-result");
+const clearMatch = document.getElementById("clear-match");
+
+function listOf(items, className) {
+  const list = document.createElement("ul");
+  list.className = className;
+  for (const text of items) {
+    const li = document.createElement("li");
+    li.textContent = text;
+    list.appendChild(li);
+  }
+  return list;
+}
+
+function showResumeSummary(resume) {
+  const heading = document.createElement("p");
+  heading.textContent = resume.skills.length
+    ? `Skills found in your resume (${resume.skills.length}):`
+    : "No known skills were found in your resume.";
+  const parts = [heading, listOf(resume.skills, "chips")];
+  if (resume.suggestions.length) {
+    const tipsTitle = document.createElement("p");
+    tipsTitle.textContent = "Wording tips (for skills you already listed):";
+    parts.push(tipsTitle, listOf(resume.suggestions, "tips"));
+  }
+  resumeResult.replaceChildren(...parts);
+}
+
+async function matchResume(event) {
+  event.preventDefault();
+  const button = resumeForm.querySelector("button[type=submit]");
+  const file = document.getElementById("resume-file").files[0];
+  if (!file) return;
+  button.disabled = true;
+  statusEl.textContent = "Reading your resume…";
+  try {
+    const body = new FormData();
+    body.append("file", file);
+    const upload = await fetch(`${API}/resume`, { method: "POST", body });
+    const resume = await upload.json();
+    if (!upload.ok) throw new Error(resume.detail || `HTTP ${upload.status}`);
+    showResumeSummary(resume);
+
+    const params = new URLSearchParams({
+      resume_id: resume.resume_id,
+      skills: resume.skills.join(","),      // fallback if the server forgot the resume
+      min_score: document.getElementById("min-score").value,
+    });
+    const resp = await fetch(`${API}/jobs/match?${params}`);
+    const data = await resp.json();
+    if (!resp.ok) throw new Error(data.detail || `HTTP ${resp.status}`);
+    requestId++;                              // ignore any search still in flight
+    renderResults(data, `No openings match at least ${data.min_score}% of their skills yet.`);
+    if (data.items.length) statusEl.textContent = `${data.total} openings match ≥ ${data.min_score}% of their skills`;
+    clearMatch.hidden = false;
+  } catch (err) {
+    statusEl.textContent = `Resume match failed: ${err.message}`;
+  } finally {
+    button.disabled = false;
+  }
+}
+
+resumeForm.addEventListener("submit", matchResume);
+clearMatch.addEventListener("click", () => {
+  clearMatch.hidden = true;
+  resumeResult.replaceChildren();
+  search();
+});
+
 // ---------- health indicator ----------
 
 async function checkHealth() {

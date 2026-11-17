@@ -48,6 +48,27 @@ class JobList(BaseModel):
     items: list[Job]
 
 
+class ResumeResponse(BaseModel):
+    resume_id: str
+    skills: list[str] = Field(description="Skills found in the resume (never invented)")
+    suggestions: list[str] = Field(description="Rewording tips for skills already listed")
+    stored_in_s3: bool
+
+
+class MatchedJob(Job):
+    match_score: int = Field(description="Percent of the job's skills the resume has")
+    matched_skills: list[str]
+    missing_skills: list[str]
+
+
+class MatchResponse(BaseModel):
+    total: int
+    min_score: int
+    resume_skills: list[str]
+    cached: bool
+    items: list[MatchedJob]
+
+
 class HealthResponse(BaseModel):
     status: Literal["ok", "degraded", "down"]
     elasticsearch: Literal["up", "down"]
