@@ -1,5 +1,8 @@
 # PlacementHub
 
+[![CI](https://github.com/kammala-kalyan/placementhub/actions/workflows/ci.yml/badge.svg)](https://github.com/kammala-kalyan/placementhub/actions/workflows/ci.yml)
+[![CD](https://github.com/kammala-kalyan/placementhub/actions/workflows/cd.yml/badge.svg)](https://github.com/kammala-kalyan/placementhub/actions/workflows/cd.yml)
+
 Collects unstructured campus placement messages from Telegram, extracts
 structured fields, removes duplicates, and makes openings searchable through a
 Telegram bot and a web UI. Built to demonstrate Docker, Elasticsearch, Redis,

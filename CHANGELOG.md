@@ -2,6 +2,15 @@
 
 All notable changes, phase by phase.
 
+## Phase 5 – GitHub Actions CI
+- `ci.yml` on every push and pull request, no secrets required:
+  ruff, pytest with coverage (fails under 85%), parser accuracy gate (95%),
+  `docker compose config` check, coverage artifact.
+- Matrix Docker build of api, bot and web with GitHub Actions layer cache.
+- `terraform fmt -check` and `terraform validate` (init without backend).
+- Least-privilege `permissions`, concurrency cancels outdated runs.
+- CI/CD status badges in the README.
+
 ## Phase 4 – Web UI
 - Plain HTML/CSS/JS UI: search box, category/role/location/sort filters,
   "closing in 3 days" toggle, job cards with red/amber deadline highlighting,
