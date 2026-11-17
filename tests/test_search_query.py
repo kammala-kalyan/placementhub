@@ -13,6 +13,7 @@ def test_empty_search_matches_everything():
 def test_text_search_is_fuzzy_and_boosts_company_and_role():
     match = build_search_query(q="data anlyst")["bool"]["must"][0]["multi_match"]
     assert match["fuzziness"] == "AUTO"
+    assert match["operator"] == "and"          # every word must match
     assert "company^3" in match["fields"] and "role^3" in match["fields"]
 
 

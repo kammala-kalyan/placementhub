@@ -101,7 +101,11 @@ def build_search_query(
     """
     must: list[dict[str, Any]] = []
     if q:
-        must.append({"multi_match": {"query": q, "fields": SEARCH_FIELDS, "fuzziness": "AUTO"}})
+        # operator "and": every word must match (with typos allowed), so "data analyst"
+        # does not rank a company merely named "... Data" first. raw_text holds the
+        # whole message, so words spread over role + location still match there.
+        must.append({"multi_match": {"query": q, "fields": SEARCH_FIELDS,
+                                     "fuzziness": "AUTO", "operator": "and"}})
     else:
         must.append({"match_all": {}})
 
