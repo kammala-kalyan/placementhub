@@ -2,6 +2,17 @@
 
 All notable changes, phase by phase.
 
+## Phase 7 – GitHub Actions CD
+- `cd.yml` runs only after CI succeeds on `main` (`workflow_run`), or manually.
+- Builds and pushes api, bot and web images to GHCR tagged `latest` and the
+  commit SHA (layer cache, OCI source label).
+- Deploys over SSH with `scripts/deploy.sh`: checkout the exact commit, pin
+  `IMAGE_TAG`, pull, `compose up -d`, wait for the health check; registry
+  token passed over the SSH session, not as an argument; key removed after.
+- Public health check from the runner, `production` environment, no
+  concurrent deploys, graceful skip when `EC2_HOST` is not configured.
+- Rollback steps in `docs/DEPLOYMENT.md`.
+
 ## Phase 6 – Terraform + AWS
 - `infra/terraform`: default VPC, security group (80 public, 22 key-only),
   EC2 (Amazon Linux 2023, `t3.micro` default, IMDSv2 only, encrypted gp3,

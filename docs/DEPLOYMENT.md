@@ -67,8 +67,8 @@ terraform plan                  # dry run: shows exactly what will be created
 terraform apply                 # type "yes" to create everything
 ```
 
-Expected: `Apply complete! Resources: 17 added` (the exact count is 16 without
-a bot token) and outputs such as:
+Expected: `Apply complete! Resources: 19 added` (18 without a bot token) and
+outputs such as:
 
 ```
 web_url      = "http://13.233.x.x"
@@ -98,6 +98,40 @@ python3 -m scripts.seed --api http://127.0.0.1:8000   # load the 50 sample messa
 ```
 
 Open `http://<public_ip>` in a browser and search.
+
+## 5b. Continuous deployment (GitHub Actions)
+
+After the server exists, every push to `main` deploys automatically:
+
+1. **CI** runs (lint, tests, image builds, Terraform checks).
+2. Only if CI passes, **CD** builds the images, pushes them to GHCR with two
+   tags (`latest` and the commit SHA), then SSHes to the server and runs
+   [`scripts/deploy.sh`](../scripts/deploy.sh): check out that commit, pin
+   `IMAGE_TAG=<sha>`, pull, `docker compose up -d`, wait for `/health`.
+3. A final step checks `http://<ip>/api/health` from the internet.
+
+Set these repository secrets once (*Settings → Secrets and variables → Actions*):
+
+| Secret | Value |
+|---|---|
+| `EC2_HOST` | `terraform output -raw public_ip` |
+| `EC2_SSH_KEY` | the full contents of `~/.ssh/placementhub` (private key) |
+
+Optional: in *Settings → Packages*, make the three `placementhub-*` packages
+**public** so the server can also pull them without logging in (on reboot or
+first boot). The deploy script logs in with a short-lived token either way.
+
+**Rollback** to any earlier commit:
+
+```bash
+ssh -i ~/.ssh/placementhub ec2-user@<ip>
+cd /opt/placementhub
+sed -i 's/^IMAGE_TAG=.*/IMAGE_TAG=<older-commit-sha>/' .env
+docker compose pull api bot web && docker compose up -d
+```
+
+Note: after `terraform destroy` + `apply` the public IP changes, so update
+the `EC2_HOST` secret.
 
 ## 6. Logs and monitoring
 

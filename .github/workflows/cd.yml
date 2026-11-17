@@ -1,0 +1,122 @@
+# Continuous Deployment: ship what CI has already proven.
+# Triggered only when the CI workflow finishes SUCCESSFULLY on main
+# (workflow_run), so broken code can never be deployed. Can also be run
+# by hand from the Actions tab (workflow_dispatch).
+#
+# Required repository secrets (Settings -> Secrets and variables -> Actions):
+#   EC2_HOST     public IP or DNS name of the server (terraform output public_ip)
+#   EC2_SSH_KEY  the PRIVATE deploy key (~/.ssh/placementhub)
+# GITHUB_TOKEN is provided automatically and is used to push/pull images.
+name: CD
+
+on:
+  workflow_run:
+    workflows: ["CI"]
+    types: [completed]
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  packages: write        # push images to GitHub Container Registry
+
+# Never run two deploys at once, and never cancel one halfway.
+concurrency:
+  group: cd-production
+  cancel-in-progress: false
+
+env:
+  # The exact commit CI tested (workflow_run) or the selected commit (manual run).
+  SHA: ${{ github.event.workflow_run.head_sha || github.sha }}
+
+jobs:
+  build-and-push:
+    name: Build & push (${{ matrix.service }})
+    if: github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success'
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        service: [api, bot, web]
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ env.SHA }}
+
+      - name: Image name (GHCR requires lowercase)
+        run: echo "IMAGE=ghcr.io/${GITHUB_REPOSITORY_OWNER,,}/placementhub-${{ matrix.service }}" >> "$GITHUB_ENV"
+
+      - uses: docker/setup-buildx-action@v3
+
+      - uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build and push
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: ${{ matrix.service }}/Dockerfile
+          push: true
+          # latest = newest build; the SHA tag makes every version traceable
+          # and lets us roll back to any previous commit.
+          tags: |
+            ${{ env.IMAGE }}:latest
+            ${{ env.IMAGE }}:${{ env.SHA }}
+          labels: org.opencontainers.image.source=${{ github.server_url }}/${{ github.repository }}
+          cache-from: type=gha,scope=${{ matrix.service }}
+          cache-to: type=gha,mode=max,scope=${{ matrix.service }}
+
+  deploy:
+    name: Deploy to EC2
+    needs: build-and-push
+    runs-on: ubuntu-latest
+    environment: production      # can require a manual approval in repo settings
+    env:
+      EC2_HOST: ${{ secrets.EC2_HOST }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ env.SHA }}
+
+      - name: Skip when no server is configured
+        if: env.EC2_HOST == ''
+        run: echo "::notice::EC2_HOST secret is not set - images were pushed, deploy skipped."
+
+      - name: Prepare SSH
+        if: env.EC2_HOST != ''
+        env:
+          EC2_SSH_KEY: ${{ secrets.EC2_SSH_KEY }}
+        run: |
+          install -m 700 -d ~/.ssh
+          printf '%s\n' "$EC2_SSH_KEY" > ~/.ssh/deploy_key
+          chmod 600 ~/.ssh/deploy_key
+          # Trust-on-first-use. Stronger: store the server's host key as a secret.
+          ssh-keyscan -T 15 -H "$EC2_HOST" >> ~/.ssh/known_hosts
+
+      - name: Deploy over SSH
+        if: env.EC2_HOST != ''
+        env:
+          GHCR_USER: ${{ github.actor }}
+          GHCR_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          # Variables travel over the encrypted SSH session (stdin), not argv.
+          {
+            printf 'export SHA=%q GHCR_USER=%q GHCR_TOKEN=%q\n' "$SHA" "$GHCR_USER" "$GHCR_TOKEN"
+            cat scripts/deploy.sh
+          } | ssh -i ~/.ssh/deploy_key -o ServerAliveInterval=30 ec2-user@"$EC2_HOST" 'bash -s'
+
+      - name: Public health check
+        if: env.EC2_HOST != ''
+        run: |
+          for attempt in $(seq 1 12); do
+            if curl -fsS "http://$EC2_HOST/api/health"; then exit 0; fi
+            sleep 5
+          done
+          echo "::error::Site is not healthy from the internet"
+          exit 1
+
+      - name: Remove SSH key
+        if: always()
+        run: rm -f ~/.ssh/deploy_key
