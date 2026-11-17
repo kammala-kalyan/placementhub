@@ -14,7 +14,7 @@ Requirements: Docker Desktop, Python 3.12+ (only for the seed script and tests).
 
 ```bash
 cp .env.example .env              # Windows PowerShell: Copy-Item .env.example .env
-docker compose up -d --build      # starts Elasticsearch, Redis and the API
+docker compose up -d --build      # starts Elasticsearch, Redis, the API and the bot
 python -m scripts.seed            # loads 50 sample messages
 ```
 
@@ -36,6 +36,7 @@ python -m venv .venv
 
 ```
 api/        FastAPI service (Dockerfile, app/)
+bot/        Telegram bot (long polling, talks only to the API)
 parser/     Shared message parser (interface + implementations)
 scripts/    Sample messages and seed script
 tests/      Unit and API tests (fakes, no real services)

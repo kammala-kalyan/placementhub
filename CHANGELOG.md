@@ -2,6 +2,20 @@
 
 All notable changes, phase by phase.
 
+## Phase 3 – Telegram bot
+- `bot` service (python-telegram-bot 21, long polling) talking only to the API.
+- Commands: `/search`, `/latest`, `/deadlines` (closing within 3 days),
+  `/filter role= location= category=`, `/help`, `/whereami` (setup helper).
+- Reads configured placement groups, ingests messages via `POST /ingest`, and
+  reposts new (non-duplicate) jobs as cards into the matching forum topic.
+- Per-user Redis rate limit (fixed window, 10/min), fail-open when Redis is down.
+- HTML-escaped job cards with deadline badges (today / tomorrow / within 3 days).
+- Docker image with a heartbeat-file healthcheck; bot stays idle (unhealthy)
+  instead of crash-looping when no token is configured.
+- Bot token handled as a secret (`SecretStr`, httpx logs silenced).
+- Tests with fake Telegram updates, fakeredis and a mocked HTTP transport
+  (165 tests, 93% coverage).
+
 ## Phase 2 – Parser, dedup, tests
 - `RuleBasedParser` (now the default): company, role, CTC (ranges and Indian
   lakh format), stipend (`30k/month`), location (aliases, remote), branches,

@@ -57,6 +57,24 @@ services:
     mem_limit: 256m
     restart: unless-stopped
 
+  bot:
+    build:
+      context: .
+      dockerfile: bot/Dockerfile
+    image: ${IMAGE_PREFIX:-placementhub}-bot:${IMAGE_TAG:-latest}
+    # Token, chat ids and topic ids come from .env (never committed).
+    env_file:
+      - path: .env
+        required: false
+    environment:
+      - API_URL=http://api:8000
+      - REDIS_URL=redis://redis:6379/1   # separate Redis DB for rate-limit counters
+    depends_on:
+      api:
+        condition: service_healthy
+    mem_limit: 128m
+    restart: unless-stopped
+
 volumes:
   esdata:
   redisdata:

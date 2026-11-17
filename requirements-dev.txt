@@ -1,5 +1,6 @@
 # Everything needed to run lint + tests locally and in CI (no Docker needed).
 -r api/requirements.txt
+-r bot/requirements.txt
 pytest==8.3.4
 pytest-cov==6.0.0
 httpx==0.28.1
